@@ -418,7 +418,7 @@ where
 mod tests {
     use super::to_vec;
     use serde::Serialize;
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     macro_rules! assert_serializes {
         ($v:expr, $expected:expr) => {
@@ -596,12 +596,12 @@ mod tests {
     }
 
     #[test]
-    fn serialize_hashmap() {
+    fn serialize_btreemap() {
         // PHP: array("foo" => 1, "bar" => 2)
-        let mut input: HashMap<String, u16> = HashMap::new();
-        input.insert("foo".to_owned(), 1);
-        input.insert("bar".to_owned(), 2);
+        let mut input: BTreeMap<String, u16> = BTreeMap::new();
+        input.insert("foo".to_owned(), 42);
+        input.insert("bar".to_owned(), 7);
 
-        assert_serializes!(input, br#"a:2:{s:3:"foo";i:1;s:3:"bar";i:2;}"#);
+        assert_serializes!(input, br#"a:2:{s:3:"bar";i:7;s:3:"foo";i:42;}"#);
     }
 }
