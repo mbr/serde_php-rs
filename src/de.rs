@@ -5,6 +5,7 @@ use serde::de::MapAccess;
 use serde::de::{Deserialize, DeserializeSeed, IntoDeserializer, SeqAccess, Visitor};
 use serde::{forward_to_deserialize_any, Deserializer};
 use smallvec::SmallVec;
+use std::convert::TryFrom;
 use std::io;
 use std::io::{BufRead, Read};
 
@@ -326,6 +327,26 @@ where
     }
 
     #[inline]
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        // Characters are serialized as 32 bit numbers values.
+        self.input.expect(b'i')?;
+        self.input.expect(b':')?;
+
+        let mut buf = SmallVec::new();
+        self.input.collect_unsigned(&mut buf)?;
+        // No sign.
+
+        self.input.expect(b';')?;
+
+        // We parse to a 32 bit unsigned value.
+        let raw: u32 = parse_bytes(&buf)?;
+        visitor.visit_char(char::try_from(raw).map_err(Error::CharConversionFailed)?)
+    }
+
+    #[inline]
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -377,7 +398,7 @@ where
     }
 
     forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 str
         bytes byte_buf unit unit_struct newtype_struct seq tuple
          map enum identifier ignored_any tuple_struct
     }

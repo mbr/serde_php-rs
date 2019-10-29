@@ -30,6 +30,8 @@ pub enum Error {
     },
     /// Deserialized bytestring is not valid UTF: {0}
     Utf8Error(#[source] std::str::Utf8Error),
+    /// Could not convert into char from decimal value: {0}
+    CharConversionFailed(#[source] std::char::CharTryFromError),
     /// Not a valid number or incorrect number type: {0}
     NotAValidNumber(#[source] Box<dyn std::error::Error>),
     /// Not a valid value for boolean: {0}

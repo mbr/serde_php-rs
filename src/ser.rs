@@ -120,7 +120,7 @@ where
 
     #[inline]
     fn serialize_char(self, v: char) -> Result<()> {
-        self.serialize_str(&v.to_string())
+        self.serialize_u32(u32::from(v))
     }
 
     #[inline]
