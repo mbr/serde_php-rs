@@ -179,6 +179,9 @@ pub use ser::{to_vec, to_writer};
 #[cfg(test)]
 mod tests {
     use super::{from_bytes, to_vec};
+    use proptest::prelude::any;
+    use proptest::proptest;
+    use std::collections::HashMap;
 
     macro_rules! roundtrip {
         ($ty:ty, $value:expr) => {
@@ -193,9 +196,75 @@ mod tests {
         };
     }
 
-    #[test]
-    fn roundtrip_bool() {
-        roundtrip!(bool, true);
-        roundtrip!(bool, false);
+    proptest! {
+        #[test]
+        fn roundtrip_bool(v in any::<bool>()) {
+            roundtrip!(bool, v);
+        }
+
+        #[test]
+        fn roundtrip_u8(v in any::<u8>()) {
+            roundtrip!(u8, v);
+        }
+
+        #[test]
+        fn roundtrip_u16(v in any::<u16>()) {
+            roundtrip!(u16, v);
+        }
+
+        #[test]
+        fn roundtrip_u32(v in any::<u32>()) {
+            roundtrip!(u32, v);
+        }
+
+        #[test]
+        fn roundtrip_u64(v in 0..(std::i64::MAX as u64)) {
+            roundtrip!(u64, v);
+        }
+
+        #[test]
+        fn roundtrip_i8(v in any::<i8>()) {
+            roundtrip!(i8, v);
+        }
+
+        #[test]
+        fn roundtrip_i16(v in any::<i16>()) {
+            roundtrip!(i16, v);
+        }
+
+        #[test]
+        fn roundtrip_i32(v in any::<i32>()) {
+            roundtrip!(i32, v);
+        }
+
+        #[test]
+        fn roundtrip_i64(v in any::<i64>()) {
+            roundtrip!(i64, v);
+        }
+
+        #[test]
+        fn roundtrip_f32(v in any::<f32>()) {
+            roundtrip!(f32, v);
+        }
+
+        #[test]
+        fn roundtrip_f64(v in any::<f64>()) {
+            roundtrip!(f64, v);
+        }
+
+        #[test]
+        fn roundtrip_bytes(v in any::<Vec<u8>>()) {
+            roundtrip!(Vec<u8>, v);
+        }
+
+        #[test]
+        fn roundtrip_char(v in any::<char>()) {
+            roundtrip!(char, v);
+        }
+
+        #[test]
+        fn roundtrip_string(v in any::<String>()) {
+            roundtrip!(String, v);
+        }
     }
 }

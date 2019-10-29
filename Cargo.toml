@@ -17,3 +17,4 @@ displaydoc = "0.1.4"
 [dev-dependencies]
 serde_bytes = "0.11.2"
 serde = { version = "1.0.101", features = ["derive"] }
+proptest = "0.9.4"
