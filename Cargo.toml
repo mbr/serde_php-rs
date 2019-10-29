@@ -4,7 +4,6 @@ version = "0.2.0"
 authors = ["Marc Brinkmann <git@marcbrinkmann.de>"]
 edition = "2018"
 description = "Serde support for PHP's serialization format."
-publish = false
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 
