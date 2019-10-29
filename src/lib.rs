@@ -105,7 +105,9 @@
 //!     sub: Inner { x: 42 },
 //! };
 //!
-//! assert_eq!(from_bytes(input), Ok(expected));
+//! let deserialized: Outer = from_bytes(input).expect("deserialization failed");
+//!
+//! assert_eq!(deserialized, expected);
 //! ```
 //!
 //! ### Optional values
