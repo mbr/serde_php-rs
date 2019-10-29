@@ -1,5 +1,5 @@
 #![forbid(missing_docs)]
-//! PHP serializatio format support for serde
+//! # PHP serialization format support for serde
 //!
 //! PHP uses a custom serialization format through its `serialize` and `unserialize` methods. This crate adds partial support for this format using serde.
 //!
