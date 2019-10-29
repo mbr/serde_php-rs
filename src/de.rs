@@ -376,18 +376,22 @@ where
     }
 
     #[inline]
-    fn deserialize_struct<V>(
-        mut self,
-        _name: &str,
-        _fields: &[&str],
-        visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_struct<V>(self, _name: &str, _fields: &[&str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         // We need to explicitly implement struct deserialization to be able
         // to distinguish between empty numeric arrays and empty associative
         // arrays.
+        self.deserialize_map(visitor)
+    }
+
+    #[inline]
+    fn deserialize_map<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        // Similar to `deserialize_struct`, we need to cover the case of the empty map.
         self.input.expect(b'a')?;
         self.input.expect(b':')?;
         let num_elements = self.input.read_array_header()?;
@@ -400,7 +404,7 @@ where
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 str
         bytes byte_buf unit unit_struct newtype_struct seq tuple
-         map enum identifier ignored_any tuple_struct
+        enum identifier ignored_any tuple_struct
     }
 }
 
