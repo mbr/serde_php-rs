@@ -83,7 +83,8 @@ impl<R: Read> Lookahead1<R> {
         } else {
             Err(Error::custom(format!(
                 "Expected {:?}, got {:?} instead.",
-                expected, actual
+                char::from(expected),
+                char::from(actual)
             )))
         }
     }
@@ -94,7 +95,10 @@ impl<R: Read> Lookahead1<R> {
         // Read the first character and ensure it is a digit.
         let c = self.read1()?;
         if !c.is_ascii_digit() {
-            return Err(Error::custom(format!("Expected digit, got {:?}", c)));
+            return Err(Error::custom(format!(
+                "Expected digit, got `{:?}`",
+                char::from(c)
+            )));
         }
         buf.push(c);
 
@@ -324,7 +328,10 @@ where
                 ))
             }
             // Unknown character, not valid.
-            c => Err(Error::custom(format!("Unknown type indicator: {}", c))),
+            c => Err(Error::custom(format!(
+                "Unknown type indicator: {:?}",
+                char::from(c)
+            ))),
         }
     }
 
