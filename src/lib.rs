@@ -181,6 +181,7 @@ mod tests {
     use super::{from_bytes, to_vec};
     use proptest::prelude::any;
     use proptest::proptest;
+    use serde::{Deserialize, Serialize};
     use std::collections::HashMap;
 
     macro_rules! roundtrip {
@@ -188,12 +189,23 @@ mod tests {
             let val = $value;
 
             let serialized = to_vec(&val).expect("Serialization failed");
+            eprintln!("{}", String::from_utf8_lossy(serialized.as_slice()));
 
             let deserialized: $ty =
                 from_bytes(serialized.as_slice()).expect("Deserialization failed");
 
             assert_eq!(deserialized, val);
         };
+    }
+
+    #[test]
+    fn roundtrip_newtype() {
+        #[derive(Debug, Deserialize, Eq, PartialEq, Serialize)]
+        struct MyNewtype(i32);
+
+        roundtrip!(MyNewtype, MyNewtype(0));
+        roundtrip!(MyNewtype, MyNewtype(1));
+        roundtrip!(MyNewtype, MyNewtype(-1));
     }
 
     proptest! {
