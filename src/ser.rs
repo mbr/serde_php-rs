@@ -4,6 +4,24 @@ use std::io::Write;
 
 type Result<T> = ::core::result::Result<T, Error>;
 
+pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
+where
+    W: Write,
+    T: Serialize,
+{
+    let mut ser = PhpSerializer::new(writer);
+    value.serialize(&mut ser)
+}
+
+pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
+where
+    T: Serialize,
+{
+    let mut buf = Vec::new();
+    to_writer(&mut buf, value)?;
+    Ok(buf)
+}
+
 #[derive(Debug)]
 pub struct PhpSerializer<W> {
     output: W,
@@ -81,7 +99,7 @@ where
     fn serialize_f64(self, v: f64) -> Result<()> {
         // Float representations _should_ match up.
         // TODO: Verify this prints edges correctly.
-        write!(self.output, "i:{};", v).map_err(Error::WriteSerialized)
+        write!(self.output, "d:{};", v).map_err(Error::WriteSerialized)
     }
 
     fn serialize_char(self, v: char) -> Result<()> {
@@ -95,7 +113,7 @@ where
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         write!(self.output, "s:{}:\"", v.len()).map_err(Error::WriteSerialized)?;
         self.output.write_all(v).map_err(Error::WriteSerialized)?;
-        write!(self.output, "\"").map_err(Error::WriteSerialized)
+        write!(self.output, "\";").map_err(Error::WriteSerialized)
     }
 
     fn serialize_none(self) -> Result<()> {
@@ -369,7 +387,7 @@ where
     }
 
     fn end(self) -> Result<()> {
-        unimplemented!()
+        self.output.write_all(b"}").map_err(Error::WriteSerialized)
     }
 }
 
@@ -393,5 +411,197 @@ where
         Err(Error::MissingFeature(
             "Serialization of enums is not supported. If you need C-style enums serialized, look at `serde_repr`.",
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::to_vec;
+    use serde::Serialize;
+    use std::collections::HashMap;
+
+    macro_rules! assert_serializes {
+        ($v:expr, $expected:expr) => {
+            let actual = to_vec(&$v).expect("serialization failed");
+
+            eprintln!("{}", String::from_utf8_lossy(actual.as_slice()));
+            eprintln!("{}", String::from_utf8_lossy($expected));
+
+            assert_eq!(actual.as_slice(), &$expected[..]);
+        };
+    }
+
+    #[test]
+    fn serialize_bool() {
+        assert_serializes!(false, b"b:0;");
+        assert_serializes!(true, b"b:1;");
+    }
+
+    #[test]
+    fn serialize_integer() {
+        assert_serializes!(-1i64, b"i:-1;");
+        assert_serializes!(0i64, b"i:0;");
+        assert_serializes!(1i64, b"i:1;");
+        assert_serializes!(123i64, b"i:123;");
+    }
+
+    #[test]
+    fn serialize_float() {
+        assert_serializes!(-1f64, b"d:-1;");
+        assert_serializes!(0f64, b"d:0;");
+        assert_serializes!(1f64, b"d:1;");
+        assert_serializes!(-1.9f64, b"d:-1.9;");
+        assert_serializes!(0.9f64, b"d:0.9;");
+        assert_serializes!(1.9f64, b"d:1.9;");
+    }
+
+    #[test]
+    fn serialize_php_string() {
+        assert_serializes!(
+            serde_bytes::Bytes::new(b"single quote '"),
+            br#"s:14:"single quote '";"#
+        );
+
+        assert_serializes!(
+            serde_bytes::ByteBuf::from(b"single quote '".to_vec()),
+            br#"s:14:"single quote '";"#
+        );
+    }
+
+    #[test]
+    fn serialize_string() {
+        assert_serializes!("single quote '", br#"s:14:"single quote '";"#);
+        assert_serializes!("single quote '".to_owned(), br#"s:14:"single quote '";"#);
+    }
+
+    #[test]
+    fn serialize_array() {
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct SubData();
+
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Data(
+            #[serde(with = "serde_bytes")] Vec<u8>,
+            #[serde(with = "serde_bytes")] Vec<u8>,
+            SubData,
+        );
+
+        assert_serializes!(
+            Data(b"user".to_vec(), b"".to_vec(), SubData()),
+            br#"a:3:{i:0;s:4:"user";i:1;s:0:"";i:2;a:0:{}}"#
+        );
+    }
+
+    #[test]
+    fn serialize_struct() {
+        // PHP equiv:
+        //
+        // array("foo" => true,
+        //       "bar" => "xyz",
+        //       "sub" => array("x" => 42))
+
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Outer {
+            foo: bool,
+            bar: String,
+            sub: Inner,
+        }
+
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Inner {
+            x: i64,
+        }
+
+        assert_serializes!(
+            Outer {
+                foo: true,
+                bar: "xyz".to_owned(),
+                sub: Inner { x: 42 },
+            },
+            br#"a:3:{s:3:"foo";b:1;s:3:"bar";s:3:"xyz";s:3:"sub";a:1:{s:1:"x";i:42;}}"#
+        );
+    }
+
+    #[test]
+    fn serialize_struct_with_optional() {
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Location {
+            #[serde(skip_serializing_if = "Option::is_none")]
+            province: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            postalcode: Option<String>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            country: Option<String>,
+        }
+
+        assert_serializes!(
+            Location {
+                province: None,
+                postalcode: None,
+                country: None,
+            },
+            br#"a:0:{}"#
+        );
+
+        assert_serializes!(
+            Location {
+                province: Some("Newfoundland and Labrador, CA".to_owned()),
+                postalcode: None,
+                country: None,
+            },
+            br#"a:1:{s:8:"province";s:29:"Newfoundland and Labrador, CA";}"#
+        );
+
+        assert_serializes!(
+            Location {
+                province: None,
+                postalcode: Some("90002".to_owned()),
+                country: Some("United States of America".to_owned()),
+            },
+            br#"a:2:{s:10:"postalcode";s:5:"90002";s:7:"country";s:24:"United States of America";}"#
+        );
+    }
+
+    #[test]
+    fn serialize_nested() {
+        // PHP: array("x" => array("inner" => 1), "y" => array("inner" => 2))
+
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Outer {
+            x: Inner,
+            y: Inner,
+        }
+
+        #[derive(Debug, Serialize, Eq, PartialEq)]
+        struct Inner {
+            inner: u8,
+        }
+
+        assert_serializes!(
+            Outer {
+                x: Inner { inner: 1 },
+                y: Inner { inner: 2 },
+            },
+            br#"a:2:{s:1:"x";a:1:{s:5:"inner";i:1;}s:1:"y";a:1:{s:5:"inner";i:2;}}"#
+        );
+    }
+
+    #[test]
+    fn serialize_variable_length() {
+        // PHP: array(1.1, 2.2, 3.3, 4.4)
+        assert_serializes!(
+            vec![1.1, 2.2, 3.3, 4.4],
+            br#"a:4:{i:0;d:1.1;i:1;d:2.2;i:2;d:3.3;i:3;d:4.4;}"#
+        );
+    }
+
+    #[test]
+    fn serialize_hashmap() {
+        // PHP: array("foo" => 1, "bar" => 2)
+        let mut input: HashMap<String, u16> = HashMap::new();
+        input.insert("foo".to_owned(), 1);
+        input.insert("bar".to_owned(), 2);
+
+        assert_serializes!(input, br#"a:2:{s:3:"foo";i:1;s:3:"bar";i:2;}"#);
     }
 }

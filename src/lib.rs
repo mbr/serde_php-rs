@@ -26,4 +26,4 @@ pub mod ser;
 
 pub use de::{from_bytes, PhpDeserializer};
 pub use error::Error;
-pub use ser::PhpSerializer;
+pub use ser::{to_vec, to_writer, PhpSerializer};

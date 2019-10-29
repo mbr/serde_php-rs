@@ -10,3 +10,6 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 serde = { version = "1.0.101", features = ["derive"] }
 smallvec = "0.6.10"
+
+[dev-dependencies]
+serde_bytes = "0.11.2"
