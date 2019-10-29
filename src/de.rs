@@ -1,16 +1,12 @@
 //! PHP deserialization.
 
-use serde::de::value::Error;
-use serde::de::Error as ErrorTrait;
+use crate::error::{Error, Result};
 use serde::de::MapAccess;
 use serde::de::{Deserialize, DeserializeSeed, IntoDeserializer, SeqAccess, Visitor};
 use serde::{forward_to_deserialize_any, Deserializer};
 use smallvec::SmallVec;
 use std::io;
 use std::io::{BufRead, Read};
-
-/// Internal result type alias.
-type Result<T> = core::result::Result<T, Error>;
 
 /// Deserialize from byte slice.
 pub fn from_bytes<'de, T>(s: &'de [u8]) -> Result<T>
@@ -47,7 +43,7 @@ impl<R: Read> Lookahead1<R> {
         if self.buffer.is_none() {
             self.buffer = {
                 let mut buf: [u8; 1] = [0];
-                let length = self.reader.read(&mut buf).map_err(Error::custom)?;
+                let length = self.reader.read(&mut buf).map_err(Error::ReadSerialized)?;
 
                 if length == 0 {
                     None
@@ -70,9 +66,7 @@ impl<R: Read> Lookahead1<R> {
     fn read1(&mut self) -> Result<u8> {
         self.fill()?;
 
-        self.buffer
-            .take()
-            .ok_or_else(|| Error::custom("Unexpected EOF"))
+        self.buffer.take().ok_or(Error::UnexpectedEof)
     }
 
     /// Expect a specific character.
@@ -81,11 +75,10 @@ impl<R: Read> Lookahead1<R> {
         if actual == expected {
             Ok(())
         } else {
-            Err(Error::custom(format!(
-                "Expected {:?}, got {:?} instead.",
-                char::from(expected),
-                char::from(actual)
-            )))
+            Err(Error::Unexpected {
+                expected: char::from(expected),
+                actual: char::from(actual),
+            })
         }
     }
 
@@ -95,10 +88,9 @@ impl<R: Read> Lookahead1<R> {
         // Read the first character and ensure it is a digit.
         let c = self.read1()?;
         if !c.is_ascii_digit() {
-            return Err(Error::custom(format!(
-                "Expected digit, got `{:?}`",
-                char::from(c)
-            )));
+            return Err(Error::ExpectedDigit {
+                actual: char::from(c),
+            });
         }
         buf.push(c);
 
@@ -180,7 +172,7 @@ impl<R: Read> Lookahead1<R> {
         }
 
         // We can now read the remainder.
-        self.reader.read_exact(buf).map_err(Error::custom)
+        self.reader.read_exact(buf).map_err(Error::ReadSerialized)
     }
 }
 
@@ -206,10 +198,11 @@ where
 /// Parse a byte string using any `FromStr` function.
 fn parse_bytes<E, T: std::str::FromStr<Err = E>, B: AsRef<[u8]>>(buf: B) -> Result<T>
 where
-    E: std::fmt::Display,
+    E: std::fmt::Display + std::error::Error + 'static,
 {
-    let s = std::str::from_utf8(buf.as_ref()).map_err(Error::custom)?;
-    s.parse().map_err(Error::custom)
+    let s = std::str::from_utf8(buf.as_ref()).map_err(Error::Utf8Error)?;
+    s.parse()
+        .map_err(|e: E| Error::NotAValidNumber(Box::new(e)))
 }
 
 impl<'a, 'de, R> Deserializer<'de> for &'a mut PhpDeserializer<R>
@@ -236,7 +229,7 @@ where
                 match val {
                     b'0' => visitor.visit_bool(false),
                     b'1' => visitor.visit_bool(true),
-                    c => Err(Error::custom(format!("Invalid boolean symbol: {:?}", c))),
+                    c => Err(Error::InvalidBooleanValue(char::from(c))),
                 }
             }
             b'i' => {
@@ -314,24 +307,20 @@ where
                         // Associative array.
                         visitor.visit_map(ArrayMapping::new(&mut self, num_elements))
                     }
-                    _ => Err(Error::custom(
-                        "Could not determine array type, should start with numeric or string key",
-                    )),
+                    Some(c) => Err(Error::UnsupportedArrayKeyType(char::from(c))),
+                    None => return Err(Error::UnexpectedEof),
                 };
                 self.input.expect(b'}')?;
                 rval
             }
             b'O' => {
                 // Object.
-                Err(Error::custom(
+                Err(Error::MissingFeature(
                     "Object deserialization is not implemented, sorry.",
                 ))
             }
             // Unknown character, not valid.
-            c => Err(Error::custom(format!(
-                "Unknown type indicator: {:?}",
-                char::from(c)
-            ))),
+            c => Err(Error::InvalidTypeIndicator(char::from(c))),
         }
     }
 
@@ -344,7 +333,7 @@ where
         // Actual UTF-8 strings are not a thing in PHP, but we offer this conversion
         // as a convenience.
         let raw = self.input.read_raw_string()?;
-        visitor.visit_string(String::from_utf8(raw).map_err(Error::custom)?)
+        visitor.visit_string(String::from_utf8(raw).map_err(|e| Error::Utf8Error(e.utf8_error()))?)
     }
 
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
@@ -432,10 +421,10 @@ where
         // TODO: Possibly change this behavior to handle arrays with out-of-order keys.
         let idx = usize::deserialize(&mut *self.de)?;
         if idx != self.index {
-            return Err(Error::custom(format!(
-                "PHP array index mismatched. Expected index {}, but found {}",
-                self.index, idx
-            )));
+            return Err(Error::IndexMismatch {
+                expected: self.index,
+                actual: idx,
+            });
         }
         debug_assert_eq!(idx, self.index);
         self.index += 1;
@@ -504,26 +493,26 @@ mod tests {
 
     #[test]
     fn deserialize_bool() {
-        assert_eq!(from_bytes(b"b:0;"), Ok(false));
-        assert_eq!(from_bytes(b"b:1;"), Ok(true));
+        assert_eq!(from_bytes::<bool>(b"b:0;").unwrap(), false);
+        assert_eq!(from_bytes::<bool>(b"b:1;").unwrap(), true);
     }
 
     #[test]
     fn deserialize_integer() {
-        assert_eq!(from_bytes(b"i:-1;"), Ok(-1i64));
-        assert_eq!(from_bytes(b"i:0;"), Ok(0i64));
-        assert_eq!(from_bytes(b"i:1;"), Ok(1i64));
-        assert_eq!(from_bytes(b"i:123;"), Ok(123i64));
+        assert_eq!(from_bytes::<i64>(b"i:-1;").unwrap(), -1i64);
+        assert_eq!(from_bytes::<i64>(b"i:0;").unwrap(), 0i64);
+        assert_eq!(from_bytes::<i64>(b"i:1;").unwrap(), 1i64);
+        assert_eq!(from_bytes::<i64>(b"i:123;").unwrap(), 123i64);
     }
 
     #[test]
     fn deserialize_float() {
-        assert_eq!(from_bytes(b"d:-1;"), Ok(-1f64));
-        assert_eq!(from_bytes(b"d:0;"), Ok(0f64));
-        assert_eq!(from_bytes(b"d:1;"), Ok(1f64));
-        assert_eq!(from_bytes(b"d:-1.9;"), Ok(-1.9f64));
-        assert_eq!(from_bytes(b"d:0.9;"), Ok(0.9f64));
-        assert_eq!(from_bytes(b"d:1.9;"), Ok(1.9f64));
+        assert_eq!(from_bytes::<f64>(b"d:-1;").unwrap(), -1f64);
+        assert_eq!(from_bytes::<f64>(b"d:0;").unwrap(), 0f64);
+        assert_eq!(from_bytes::<f64>(b"d:1;").unwrap(), 1f64);
+        assert_eq!(from_bytes::<f64>(b"d:-1.9;").unwrap(), -1.9f64);
+        assert_eq!(from_bytes::<f64>(b"d:0.9;").unwrap(), 0.9f64);
+        assert_eq!(from_bytes::<f64>(b"d:1.9;").unwrap(), 1.9f64);
     }
 
     #[test]
@@ -586,7 +575,7 @@ mod tests {
             sub: Inner { x: 42 },
         };
 
-        assert_eq!(from_bytes(input), Ok(expected));
+        assert_eq!(from_bytes::<Outer>(input).unwrap(), expected);
     }
 
     #[test]
@@ -619,9 +608,9 @@ mod tests {
             postalcode: Some("90002".to_owned()),
             country: Some("United States of America".to_owned()),
         };
-        assert_eq!(from_bytes(input_a), Ok(expected_a));
-        assert_eq!(from_bytes(input_b), Ok(expected_b));
-        assert_eq!(from_bytes(input_c), Ok(expected_c));
+        assert_eq!(from_bytes::<Location>(input_a).unwrap(), expected_a);
+        assert_eq!(from_bytes::<Location>(input_b).unwrap(), expected_b);
+        assert_eq!(from_bytes::<Location>(input_c).unwrap(), expected_c);
     }
 
     #[test]
@@ -645,7 +634,7 @@ mod tests {
             y: Inner { inner: 2 },
         };
 
-        assert_eq!(from_bytes(input), Ok(expected));
+        assert_eq!(from_bytes::<Outer>(input).unwrap(), expected);
     }
 
     #[test]
@@ -654,7 +643,7 @@ mod tests {
         let input = br#"a:4:{i:0;d:1.1;i:1;d:2.2;i:2;d:3.3;i:3;d:4.4;}"#;
 
         let expected = vec![1.1, 2.2, 3.3, 4.4];
-        assert_eq!(from_bytes(input), Ok(expected));
+        assert_eq!(from_bytes::<Vec<f64>>(input).unwrap(), expected);
     }
 
     #[test]
@@ -665,6 +654,6 @@ mod tests {
         expected.insert("foo".to_owned(), 1);
         expected.insert("bar".to_owned(), 2);
 
-        assert_eq!(from_bytes(input), Ok(expected));
+        assert_eq!(from_bytes::<HashMap<String, u16>>(input).unwrap(), expected);
     }
 }
