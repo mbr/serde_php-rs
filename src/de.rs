@@ -495,44 +495,53 @@ mod tests {
     use serde::Deserialize;
     use std::collections::HashMap;
 
+    macro_rules! assert_deserializes {
+        ($ty:ty, $input:expr, $expected:expr) => {
+            // TODO: It's not feasible to infer the type here, compare
+            //       `deserialize_php_string` and `deserialize_string`.gi
+            let actual: $ty = from_bytes($input).expect("deserialization failed");
+            assert_eq!(actual, $expected);
+        };
+    }
+
     #[test]
     fn deserialize_bool() {
-        assert_eq!(from_bytes::<bool>(b"b:0;").unwrap(), false);
-        assert_eq!(from_bytes::<bool>(b"b:1;").unwrap(), true);
+        assert_deserializes!(bool, b"b:0;", false);
+        assert_deserializes!(bool, b"b:1;", true);
     }
 
     #[test]
     fn deserialize_integer() {
-        assert_eq!(from_bytes::<i64>(b"i:-1;").unwrap(), -1i64);
-        assert_eq!(from_bytes::<i64>(b"i:0;").unwrap(), 0i64);
-        assert_eq!(from_bytes::<i64>(b"i:1;").unwrap(), 1i64);
-        assert_eq!(from_bytes::<i64>(b"i:123;").unwrap(), 123i64);
+        assert_deserializes!(i64, b"i:-1;", -1);
+        assert_deserializes!(i64, b"i:0;", 0);
+        assert_deserializes!(i64, b"i:1;", 1);
+        assert_deserializes!(i64, b"i:123;", 123);
     }
 
     #[test]
     fn deserialize_float() {
-        assert_eq!(from_bytes::<f64>(b"d:-1;").unwrap(), -1f64);
-        assert_eq!(from_bytes::<f64>(b"d:0;").unwrap(), 0f64);
-        assert_eq!(from_bytes::<f64>(b"d:1;").unwrap(), 1f64);
-        assert_eq!(from_bytes::<f64>(b"d:-1.9;").unwrap(), -1.9f64);
-        assert_eq!(from_bytes::<f64>(b"d:0.9;").unwrap(), 0.9f64);
-        assert_eq!(from_bytes::<f64>(b"d:1.9;").unwrap(), 1.9f64);
+        assert_deserializes!(f64, b"d:-1;", -1.0);
+        assert_deserializes!(f64, b"d:0;", 0.0);
+        assert_deserializes!(f64, b"d:1;", 1.0);
+        assert_deserializes!(f64, b"d:-1.9;", -1.9);
+        assert_deserializes!(f64, b"d:0.9;", 0.9);
+        assert_deserializes!(f64, b"d:1.9;", 1.9);
     }
 
     #[test]
     fn deserialize_php_string() {
-        let input = br#"s:14:"single quote '";"#;
-        assert_eq!(
-            from_bytes::<Vec<u8>>(input).unwrap(),
+        assert_deserializes!(
+            Vec<u8>,
+            br#"s:14:"single quote '";"#,
             b"single quote '".to_owned()
         );
     }
 
     #[test]
     fn deserialize_string() {
-        let input = br#"s:14:"single quote '";"#;
-        assert_eq!(
-            from_bytes::<String>(input).unwrap(),
+        assert_deserializes!(
+            String,
+            br#"s:14:"single quote '";"#,
             "single quote '".to_owned()
         );
     }
@@ -545,9 +554,9 @@ mod tests {
         #[derive(Debug, Deserialize, Eq, PartialEq)]
         struct Data(Vec<u8>, Vec<u8>, SubData);
 
-        let input = br#"a:3:{i:0;s:4:"user";i:1;s:0:"";i:2;a:0:{}}"#;
-        assert_eq!(
-            from_bytes::<Data>(input).unwrap(),
+        assert_deserializes!(
+            Data,
+            br#"a:3:{i:0;s:4:"user";i:1;s:0:"";i:2;a:0:{}}"#,
             Data(b"user".to_vec(), b"".to_vec(), SubData())
         );
     }
@@ -572,14 +581,15 @@ mod tests {
             x: i64,
         }
 
-        let input = br#"a:3:{s:3:"foo";b:1;s:3:"bar";s:3:"xyz";s:3:"sub";a:1:{s:1:"x";i:42;}}"#;
-        let expected = Outer {
-            foo: true,
-            bar: "xyz".to_owned(),
-            sub: Inner { x: 42 },
-        };
-
-        assert_eq!(from_bytes::<Outer>(input).unwrap(), expected);
+        assert_deserializes!(
+            Outer,
+            br#"a:3:{s:3:"foo";b:1;s:3:"bar";s:3:"xyz";s:3:"sub";a:1:{s:1:"x";i:42;}}"#,
+            Outer {
+                foo: true,
+                bar: "xyz".to_owned(),
+                sub: Inner { x: 42 },
+            }
+        );
     }
 
     #[test]
@@ -591,37 +601,38 @@ mod tests {
             country: Option<String>,
         }
 
-        let input_a = br#"a:0:{}"#;
-        let input_b = br#"a:1:{s:8:"province";s:29:"Newfoundland and Labrador, CA";}"#;
-        let input_c =
-            br#"a:2:{s:10:"postalcode";s:5:"90002";s:7:"country";s:24:"United States of America";}
-"#;
-
-        let expected_a = Location {
-            province: None,
-            postalcode: None,
-            country: None,
-        };
-        let expected_b = Location {
-            province: Some("Newfoundland and Labrador, CA".to_owned()),
-            postalcode: None,
-            country: None,
-        };
-        let expected_c = Location {
+        assert_deserializes!(
+            Location,
+            br#"a:0:{}"#,
+            Location {
+                province: None,
+                postalcode: None,
+                country: None,
+            }
+        );
+        assert_deserializes!(
+            Location,
+            br#"a:1:{s:8:"province";s:29:"Newfoundland and Labrador, CA";}"#,
+            Location {
+                province: Some("Newfoundland and Labrador, CA".to_owned()),
+                postalcode: None,
+                country: None,
+            }
+        );
+        assert_deserializes!(
+            Location,
+            br#"a:2:{s:10:"postalcode";s:5:"90002";s:7:"country";s:24:"United States of America";}"#,
+            Location {
             province: None,
             postalcode: Some("90002".to_owned()),
             country: Some("United States of America".to_owned()),
-        };
-        assert_eq!(from_bytes::<Location>(input_a).unwrap(), expected_a);
-        assert_eq!(from_bytes::<Location>(input_b).unwrap(), expected_b);
-        assert_eq!(from_bytes::<Location>(input_c).unwrap(), expected_c);
+        }
+        );
     }
 
     #[test]
     fn deserialize_nested() {
         // PHP: array("x" => array("inner" => 1), "y" => array("inner" => 2))
-        let input = br#"a:2:{s:1:"x";a:1:{s:5:"inner";i:1;}s:1:"y";a:1:{s:5:"inner";i:2;}}"#;
-
         #[derive(Debug, Deserialize, Eq, PartialEq)]
         struct Outer {
             x: Inner,
@@ -633,31 +644,33 @@ mod tests {
             inner: u8,
         }
 
-        let expected = Outer {
-            x: Inner { inner: 1 },
-            y: Inner { inner: 2 },
-        };
-
-        assert_eq!(from_bytes::<Outer>(input).unwrap(), expected);
+        assert_deserializes!(
+            Outer,
+            br#"a:2:{s:1:"x";a:1:{s:5:"inner";i:1;}s:1:"y";a:1:{s:5:"inner";i:2;}}"#,
+            Outer {
+                x: Inner { inner: 1 },
+                y: Inner { inner: 2 },
+            }
+        );
     }
 
     #[test]
     fn deserialize_variable_length() {
         // PHP: array(1.1, 2.2, 3.3, 4.4)
-        let input = br#"a:4:{i:0;d:1.1;i:1;d:2.2;i:2;d:3.3;i:3;d:4.4;}"#;
-
-        let expected = vec![1.1, 2.2, 3.3, 4.4];
-        assert_eq!(from_bytes::<Vec<f64>>(input).unwrap(), expected);
+        assert_deserializes!(
+            Vec<f64>,
+            br#"a:4:{i:0;d:1.1;i:1;d:2.2;i:2;d:3.3;i:3;d:4.4;}"#,
+            vec![1.1, 2.2, 3.3, 4.4]
+        );
     }
 
     #[test]
     fn deserialize_hashmap() {
         // PHP: array("foo" => 1, "bar" => 2)
-        let input = br#"a:2:{s:3:"foo";i:1;s:3:"bar";i:2;}"#;
-        let mut expected: HashMap<String, u16> = HashMap::new();
+        let mut expected = HashMap::new();
         expected.insert("foo".to_owned(), 1);
         expected.insert("bar".to_owned(), 2);
 
-        assert_eq!(from_bytes::<HashMap<String, u16>>(input).unwrap(), expected);
+        assert_deserializes!(HashMap<String, u16>, br#"a:2:{s:3:"foo";i:1;s:3:"bar";i:2;}"#, expected);
     }
 }
