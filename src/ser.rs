@@ -1,8 +1,6 @@
-use crate::error::Error;
+use crate::error::{Error, Result};
 use serde::{ser, Serialize};
 use std::io::Write;
-
-type Result<T> = ::core::result::Result<T, Error>;
 
 /// Write out serialization of value.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>

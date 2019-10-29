@@ -4,6 +4,9 @@ use displaydoc::Display;
 use std::{fmt, io};
 use thiserror::Error;
 
+/// Result type for PHP serialization/deserialization.
+pub type Result<T> = ::core::result::Result<T, Error>;
+
 /// PHP serialization/deserialization error.
 #[derive(Error, Debug, Display)]
 pub enum Error {
