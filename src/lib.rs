@@ -175,3 +175,27 @@ mod ser;
 pub use de::from_bytes;
 pub use error::{Error, Result};
 pub use ser::{to_vec, to_writer};
+
+#[cfg(test)]
+mod tests {
+    use super::{from_bytes, to_vec};
+
+    macro_rules! roundtrip {
+        ($ty:ty, $value:expr) => {
+            let val = $value;
+
+            let serialized = to_vec(&val).expect("Serialization failed");
+
+            let deserialized: $ty =
+                from_bytes(serialized.as_slice()).expect("Deserialization failed");
+
+            assert_eq!(deserialized, val);
+        };
+    }
+
+    #[test]
+    fn roundtrip_bool() {
+        roundtrip!(bool, true);
+        roundtrip!(bool, false);
+    }
+}
