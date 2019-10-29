@@ -4,6 +4,7 @@ use std::io::Write;
 
 type Result<T> = ::core::result::Result<T, Error>;
 
+/// Write out serialization of value.
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: Write,
@@ -13,6 +14,7 @@ where
     value.serialize(&mut ser)
 }
 
+/// Write serialization of value into byte vector.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
@@ -22,12 +24,14 @@ where
     Ok(buf)
 }
 
+/// Central serializer structure.
 #[derive(Debug)]
-pub struct PhpSerializer<W> {
+struct PhpSerializer<W> {
     output: W,
 }
 
 impl<W> PhpSerializer<W> {
+    /// Create new serializer on writer.
     fn new(output: W) -> Self {
         PhpSerializer { output }
     }
@@ -239,6 +243,7 @@ where
     }
 }
 
+/// Helper structure for numeric arrays.
 #[derive(Debug)]
 pub struct NumericArraySerializer<'a, W> {
     // There is no delimiter for elements (arrays are length-prefixed and
@@ -249,6 +254,7 @@ pub struct NumericArraySerializer<'a, W> {
 }
 
 impl<'a, W> NumericArraySerializer<'a, W> {
+    /// Create new numeric array helper.
     fn new(serializer: &'a mut PhpSerializer<W>) -> Self {
         NumericArraySerializer {
             index: 0,

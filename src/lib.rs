@@ -1,3 +1,4 @@
+#![forbid(missing_docs)]
 //! PHP serializatio format support for serde
 //!
 //! PHP uses a custom serialization format through its `serialize` and `unserialize` methods. This crate adds partial support for this format using serde.
@@ -169,6 +170,6 @@ mod de;
 mod error;
 mod ser;
 
-pub use de::{from_bytes, PhpDeserializer};
+pub use de::from_bytes;
 pub use error::Error;
-pub use ser::{to_vec, to_writer, PhpSerializer};
+pub use ser::{to_vec, to_writer};
