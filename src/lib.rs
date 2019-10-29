@@ -1,7 +1,11 @@
 #![forbid(missing_docs)]
 //! # PHP serialization format support for serde
 //!
-//! PHP uses a custom serialization format through its `serialize` and `unserialize` methods. This crate adds partial support for this format using serde.
+//! PHP uses a custom serialization format through its
+//! [`serialize()`](https://www.php.net/manual/en/function.serialize.php)
+//! and
+//! [`unserialize()`](https://www.php.net/manual/en/function.unserialize.php)
+//! methods. This crate adds partial support for this format using `serde`.
 //!
 //! An overview of the format can be seen at
 //! <https://stackoverflow.com/questions/14297926/structure-of-a-serialized-php-string>,
