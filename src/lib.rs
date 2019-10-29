@@ -280,6 +280,11 @@ mod tests {
         }
 
         #[test]
+        fn roundtrip_option(v in any::<Option<i32>>()) {
+            roundtrip!(Option<i32>, v);
+        }
+
+        #[test]
         fn roundtrip_string_string_hashmap(v in proptest::collection::hash_map(any::<String>(), any::<String>(), 0..100)) {
             roundtrip!(HashMap<String, String>, v);
         }
