@@ -467,6 +467,11 @@ mod tests {
     }
 
     #[test]
+    fn serialize_unit() {
+        assert_serializes!((), b"N;");
+    }
+
+    #[test]
     fn serialize_bool() {
         assert_serializes!(false, b"b:0;");
         assert_serializes!(true, b"b:1;");

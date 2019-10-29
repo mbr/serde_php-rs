@@ -219,6 +219,13 @@ where
     {
         // All fields start with a type, followed by a colon.
         let sym = self.input.read1()?;
+
+        if sym == b'N' {
+            // `null` is a special case, since it is not followed by a colon.
+            self.input.expect(b';')?;
+            return visitor.visit_unit();
+        }
+
         self.input.expect(b':')?;
 
         // See https://stackoverflow.com/questions/14297926/structure-of-a-serialized-php-string
@@ -278,12 +285,6 @@ where
 
                 // We now have the complete bytestring, no further parsing required.
                 visitor.visit_seq(serde::de::value::SeqDeserializer::new(data.into_iter()))
-            }
-            b'N' => {
-                // null.
-                self.input.expect(b'N')?;
-                self.input.expect(b';')?;
-                visitor.visit_none()
             }
             b'a' => {
                 // Array.

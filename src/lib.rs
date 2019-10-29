@@ -210,6 +210,11 @@ mod tests {
 
     proptest! {
         #[test]
+        fn roundtrip_unit(v in any::<()>()) {
+            roundtrip!((), v);
+        }
+
+        #[test]
         fn roundtrip_bool(v in any::<bool>()) {
             roundtrip!(bool, v);
         }
