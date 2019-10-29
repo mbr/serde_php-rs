@@ -211,6 +211,7 @@ where
 {
     type Error = Error;
 
+    #[inline]
     fn deserialize_any<V>(mut self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -324,6 +325,7 @@ where
         }
     }
 
+    #[inline]
     fn deserialize_string<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -336,6 +338,7 @@ where
         visitor.visit_string(String::from_utf8(raw).map_err(|e| Error::Utf8Error(e.utf8_error()))?)
     }
 
+    #[inline]
     fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -351,6 +354,7 @@ where
         }
     }
 
+    #[inline]
     fn deserialize_struct<V>(
         mut self,
         _name: &str,

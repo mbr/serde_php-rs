@@ -61,6 +61,7 @@ pub enum Error {
 }
 
 impl serde::ser::Error for Error {
+    #[inline]
     fn custom<T>(msg: T) -> Self
     where
         T: fmt::Display,
@@ -70,6 +71,7 @@ impl serde::ser::Error for Error {
 }
 
 impl serde::de::Error for Error {
+    #[inline]
     fn custom<T>(msg: T) -> Self
     where
         T: fmt::Display,

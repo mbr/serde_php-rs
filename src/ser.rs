@@ -3,6 +3,7 @@ use serde::{ser, Serialize};
 use std::io::Write;
 
 /// Write out serialization of value.
+#[inline]
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: Write,
@@ -13,6 +14,7 @@ where
 }
 
 /// Write serialization of value into byte vector.
+#[inline]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
@@ -30,6 +32,7 @@ struct PhpSerializer<W> {
 
 impl<W> PhpSerializer<W> {
     /// Create new serializer on writer.
+    #[inline]
     fn new(output: W) -> Self {
         PhpSerializer { output }
     }
@@ -51,6 +54,7 @@ where
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
+    #[inline]
     fn serialize_bool(self, v: bool) -> Result<()> {
         if v {
             self.output.write_all(b"b:1;")
@@ -60,68 +64,83 @@ where
         .map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_i8(self, v: i8) -> Result<()> {
         self.serialize_i64(i64::from(v))
     }
 
+    #[inline]
     fn serialize_i16(self, v: i16) -> Result<()> {
         self.serialize_i64(i64::from(v))
     }
 
+    #[inline]
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.serialize_i64(i64::from(v))
     }
 
+    #[inline]
     fn serialize_i64(self, v: i64) -> Result<()> {
         // We rely on Rust having a "standard" display implementation for
         // `i64` types, which is a reasonable assumption.
         write!(self.output, "i:{};", v).map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_u8(self, v: u8) -> Result<()> {
         self.serialize_u64(u64::from(v))
     }
 
+    #[inline]
     fn serialize_u16(self, v: u16) -> Result<()> {
         self.serialize_u64(u64::from(v))
     }
 
+    #[inline]
     fn serialize_u32(self, v: u32) -> Result<()> {
         self.serialize_u64(u64::from(v))
     }
 
+    #[inline]
     fn serialize_u64(self, v: u64) -> Result<()> {
         write!(self.output, "i:{};", v).map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_f32(self, v: f32) -> Result<()> {
         self.serialize_f64(f64::from(v))
     }
 
+    #[inline]
     fn serialize_f64(self, v: f64) -> Result<()> {
         // Float representations _should_ match up.
         // TODO: Verify this prints edges correctly.
         write!(self.output, "d:{};", v).map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_char(self, v: char) -> Result<()> {
         self.serialize_str(&v.to_string())
     }
 
+    #[inline]
     fn serialize_str(self, v: &str) -> Result<()> {
         self.serialize_bytes(v.as_bytes())
     }
 
+    #[inline]
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
         write!(self.output, "s:{}:\"", v.len()).map_err(Error::WriteSerialized)?;
         self.output.write_all(v).map_err(Error::WriteSerialized)?;
         write!(self.output, "\";").map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_none(self) -> Result<()> {
         self.serialize_unit()
     }
 
+    #[inline]
     fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -129,16 +148,19 @@ where
         value.serialize(self)
     }
 
+    #[inline]
     fn serialize_unit(self) -> Result<()> {
         self.output.write_all(b"N;").map_err(Error::WriteSerialized)
     }
 
+    #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
         Err(Error::MissingFeature(
             "Serialization of unit structures is not supported.",
         ))
     }
 
+    #[inline]
     fn serialize_unit_variant(
         self,
         _name: &'static str,
@@ -150,6 +172,7 @@ where
         ))
     }
 
+    #[inline]
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
@@ -158,6 +181,7 @@ where
         value.serialize(self)
     }
 
+    #[inline]
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
@@ -173,6 +197,7 @@ where
         ))
     }
 
+    #[inline]
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq> {
         // Sequence serialization is iffy because we would need to buffer
         // the whole serialized string in memory if we do not know the number
@@ -190,10 +215,12 @@ where
         }
     }
 
+    #[inline]
     fn serialize_tuple(self, len: usize) -> Result<Self::SerializeTuple> {
         self.serialize_seq(Some(len))
     }
 
+    #[inline]
     fn serialize_tuple_struct(
         self,
         _name: &'static str,
@@ -202,6 +229,7 @@ where
         self.serialize_tuple(len)
     }
 
+    #[inline]
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
@@ -214,6 +242,7 @@ where
         ))
     }
 
+    #[inline]
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap> {
         if let Some(n) = len {
             write!(self.output, "a:{}:{{", n).map_err(Error::WriteSerialized)?;
@@ -224,10 +253,12 @@ where
         }
     }
 
+    #[inline]
     fn serialize_struct(self, _name: &'static str, len: usize) -> Result<Self::SerializeStruct> {
         self.serialize_map(Some(len))
     }
 
+    #[inline]
     fn serialize_struct_variant(
         self,
         _name: &'static str,
