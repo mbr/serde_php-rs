@@ -21,5 +21,9 @@
 //! ```
 
 pub mod de;
+mod error;
+pub mod ser;
 
 pub use de::{from_bytes, PhpDeserializer};
+pub use error::Error;
+pub use ser::PhpSerializer;
