@@ -31,7 +31,7 @@ pub enum Error {
     /// Deserialized bytestring is not valid UTF: {0}
     Utf8Error(#[source] std::str::Utf8Error),
     /// Not a valid number or incorrect number type: {0}
-    NotAValidNumber(#[source] Box<std::error::Error>),
+    NotAValidNumber(#[source] Box<dyn std::error::Error>),
     /// Not a valid value for boolean: {0}
     InvalidBooleanValue(char),
     /// Unsupported array key type (must be all strings or all numeric): {0}
