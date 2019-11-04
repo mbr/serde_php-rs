@@ -12,7 +12,6 @@ documentation = "https://docs.rs/serde_php"
 [dependencies]
 serde = { version = "1" }
 smallvec = "0.6.10"
-thiserror = "1.0.4"
 displaydoc = "0.1.4"
 
 [dev-dependencies]

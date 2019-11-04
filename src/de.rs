@@ -199,7 +199,7 @@ where
 /// Parse a byte string using any `FromStr` function.
 fn parse_bytes<E, T: std::str::FromStr<Err = E>, B: AsRef<[u8]>>(buf: B) -> Result<T>
 where
-    E: std::fmt::Display + std::error::Error + 'static,
+    E: std::fmt::Display + std::error::Error + Send + Sync + 'static,
 {
     let s = std::str::from_utf8(buf.as_ref()).map_err(Error::Utf8Error)?;
     s.parse()

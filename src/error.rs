@@ -2,18 +2,17 @@
 
 use displaydoc::Display;
 use std::{fmt, io};
-use thiserror::Error;
 
 /// Result type for PHP serialization/deserialization.
 pub type Result<T> = ::core::result::Result<T, Error>;
 
 /// PHP serialization/deserialization error.
-#[derive(Error, Debug, Display)]
+#[derive(Debug, Display)]
 pub enum Error {
     /// Error writing serializated value: {0}
-    WriteSerialized(#[source] io::Error),
+    WriteSerialized(io::Error),
     /// Error reading serializing value: {0}
-    ReadSerialized(#[source] io::Error),
+    ReadSerialized(io::Error),
     /// Unexpected end of file while reading,
     UnexpectedEof,
     /// Expected `{expected}` but got `{actual}` instead.
@@ -29,11 +28,11 @@ pub enum Error {
         actual: char,
     },
     /// Deserialized bytestring is not valid UTF: {0}
-    Utf8Error(#[source] std::str::Utf8Error),
+    Utf8Error(std::str::Utf8Error),
     /// Could not convert into char from decimal value: {0}
-    CharConversionFailed(#[source] std::char::CharTryFromError),
+    CharConversionFailed(std::char::CharTryFromError),
     /// Not a valid number or incorrect number type: {0}
-    NotAValidNumber(#[source] Box<dyn std::error::Error>),
+    NotAValidNumber(Box<dyn std::error::Error + Send + Sync>),
     /// Not a valid value for boolean: {0}
     InvalidBooleanValue(char),
     /// Unsupported array key type (must be all strings or all numeric): {0}
@@ -60,6 +59,21 @@ pub enum Error {
     SerializationFailed(String),
     /// PHP Serialization failed: {0}
     DeserializationFailed(String),
+}
+
+// Note: Manual error implementation as opposed to `thiserror`, otherwise
+//       `NotAValidNumber` errors cannot be constructed `Send`.
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::WriteSerialized(ref err) => Some(err),
+            Error::ReadSerialized(ref err) => Some(err),
+            Error::Utf8Error(ref err) => Some(err),
+            Error::CharConversionFailed(ref err) => Some(err),
+            Error::NotAValidNumber(ref err) => Some(err.as_ref()),
+            _ => None,
+        }
+    }
 }
 
 impl serde::ser::Error for Error {
