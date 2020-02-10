@@ -7,7 +7,7 @@ use std::io::Write;
 pub fn to_writer<W, T>(writer: W, value: &T) -> Result<()>
 where
     W: Write,
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let mut ser = PhpSerializer::new(writer);
     value.serialize(&mut ser)
@@ -17,7 +17,7 @@ where
 #[inline]
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
-    T: Serialize,
+    T: Serialize + ?Sized,
 {
     let mut buf = Vec::new();
     to_writer(&mut buf, value)?;
