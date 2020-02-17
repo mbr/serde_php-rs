@@ -456,6 +456,7 @@ impl ser::SerializeStructVariant for NotImplemented {
 #[cfg(test)]
 mod tests {
     use super::to_vec;
+    use bson;
     use serde::Serialize;
     use std::collections::BTreeMap;
 
@@ -647,5 +648,21 @@ mod tests {
         input.insert("bar".to_owned(), 7);
 
         assert_serializes!(input, br#"a:2:{s:3:"bar";i:7;s:3:"foo";i:42;}"#);
+    }
+
+    #[test]
+    fn unaffected_by_recursive_type_error() {
+        // The following code will not compile, but fail with an infinite type recursion instead,
+        // if self-referential associated types are used.
+        //
+        // See
+        //
+        // * https://github.com/rust-lang/rust/issues/62755
+        //
+        // This is technically a bug that only props up in specific cases, but is very confusing
+        // for the caller.
+
+        let val: bson::Bson = bson::Document::new().into();
+        to_vec(&val).unwrap();
     }
 }
