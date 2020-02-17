@@ -218,7 +218,7 @@ where
             write!(self.output, "a:{}:{{", n).map_err(Error::WriteSerialized)?;
             Ok(NumericArraySerializer::new(self))
         } else {
-            return Err(Error::LengthRequired);
+            Err(Error::LengthRequired)
         }
     }
 
@@ -256,7 +256,7 @@ where
             // No need to count elements, thus no added state.
             Ok(self)
         } else {
-            return Err(Error::LengthRequired);
+            Err(Error::LengthRequired)
         }
     }
 
