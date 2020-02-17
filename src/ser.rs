@@ -9,7 +9,7 @@ where
     W: Write,
     T: Serialize + ?Sized,
 {
-    let mut ser = PhpSerializer::new(writer);
+    let mut ser = Serializer::new(writer);
     value.serialize(&mut ser)
 }
 
@@ -26,19 +26,19 @@ where
 
 /// Central serializer structure.
 #[derive(Debug)]
-struct PhpSerializer<W> {
+struct Serializer<W> {
     output: W,
 }
 
-impl<W> PhpSerializer<W> {
+impl<W> Serializer<W> {
     /// Create new serializer on writer.
     #[inline]
     fn new(output: W) -> Self {
-        PhpSerializer { output }
+        Serializer { output }
     }
 }
 
-impl<'a, W> ser::Serializer for &'a mut PhpSerializer<W>
+impl<'a, W> ser::Serializer for &'a mut Serializer<W>
 where
     W: Write,
 {
@@ -279,12 +279,12 @@ pub struct NumericArraySerializer<'a, W> {
     // and carry their own terminator. However, we still need to count
     // the elements.
     index: usize,
-    serializer: &'a mut PhpSerializer<W>,
+    serializer: &'a mut Serializer<W>,
 }
 
 impl<'a, W> NumericArraySerializer<'a, W> {
     /// Create new numeric array helper.
-    fn new(serializer: &'a mut PhpSerializer<W>) -> Self {
+    fn new(serializer: &'a mut Serializer<W>) -> Self {
         NumericArraySerializer {
             index: 0,
             serializer,
@@ -303,7 +303,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        let mut ser = PhpSerializer::new(&mut self.serializer.output);
+        let mut ser = Serializer::new(&mut self.serializer.output);
 
         // Output-format is just index directly followed by value.
         self.index.serialize(&mut ser)?;
@@ -358,7 +358,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeTupleVariant for &'a mut PhpSerializer<W> {
+impl<'a, W> ser::SerializeTupleVariant for &'a mut Serializer<W> {
     type Ok = ();
     type Error = Error;
 
@@ -378,7 +378,7 @@ impl<'a, W> ser::SerializeTupleVariant for &'a mut PhpSerializer<W> {
     }
 }
 
-impl<'a, W> ser::SerializeMap for &'a mut PhpSerializer<W>
+impl<'a, W> ser::SerializeMap for &'a mut Serializer<W>
 where
     W: Write,
 {
@@ -389,14 +389,14 @@ where
     where
         T: ?Sized + Serialize,
     {
-        key.serialize(&mut PhpSerializer::new(&mut self.output))
+        key.serialize(&mut Serializer::new(&mut self.output))
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut PhpSerializer::new(&mut self.output))
+        value.serialize(&mut Serializer::new(&mut self.output))
     }
 
     fn end(self) -> Result<()> {
@@ -404,7 +404,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeStruct for &'a mut PhpSerializer<W>
+impl<'a, W> ser::SerializeStruct for &'a mut Serializer<W>
 where
     W: Write,
 {
@@ -415,7 +415,7 @@ where
     where
         T: ?Sized + Serialize,
     {
-        let mut ser = PhpSerializer::new(&mut self.output);
+        let mut ser = Serializer::new(&mut self.output);
         key.serialize(&mut ser)?;
         value.serialize(&mut ser)?;
         Ok(())
@@ -426,7 +426,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeStructVariant for &'a mut PhpSerializer<W>
+impl<'a, W> ser::SerializeStructVariant for &'a mut Serializer<W>
 where
     W: Write,
 {
