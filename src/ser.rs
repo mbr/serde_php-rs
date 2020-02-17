@@ -38,6 +38,13 @@ impl<W> Serializer<W> {
     }
 }
 
+/// Not implemented helper struct.
+///
+/// "Implements" various traits required for serialization that are not supported. Always fails
+/// with an error message if called.
+#[derive(Debug)]
+struct NotImplemented;
+
 impl<'a, W> ser::Serializer for &'a mut Serializer<W>
 where
     W: Write,
@@ -49,10 +56,10 @@ where
     type SerializeSeq = NumericArraySerializer<'a, W>;
     type SerializeTuple = NumericArraySerializer<'a, W>;
     type SerializeTupleStruct = NumericArraySerializer<'a, W>;
-    type SerializeTupleVariant = Self;
+    type SerializeTupleVariant = NotImplemented;
     type SerializeMap = Self;
     type SerializeStruct = Self;
-    type SerializeStructVariant = Self;
+    type SerializeStructVariant = NotImplemented;
 
     #[inline]
     fn serialize_bool(self, v: bool) -> Result<()> {
@@ -358,7 +365,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeTupleVariant for &'a mut Serializer<W> {
+impl ser::SerializeTupleVariant for NotImplemented {
     type Ok = ();
     type Error = Error;
 
@@ -426,10 +433,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeStructVariant for &'a mut Serializer<W>
-where
-    W: Write,
-{
+impl ser::SerializeStructVariant for NotImplemented {
     type Ok = ();
     type Error = Error;
 
