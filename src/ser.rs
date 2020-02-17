@@ -310,11 +310,9 @@ where
     where
         T: ?Sized + Serialize,
     {
-        let mut ser = Serializer::new(&mut self.serializer.output);
-
         // Output-format is just index directly followed by value.
-        self.index.serialize(&mut ser)?;
-        value.serialize(&mut ser)?;
+        self.index.serialize(&mut *self.serializer)?;
+        value.serialize(&mut *self.serializer)?;
         self.index += 1;
         Ok(())
     }
@@ -396,14 +394,14 @@ where
     where
         T: ?Sized + Serialize,
     {
-        key.serialize(&mut Serializer::new(&mut self.output))
+        key.serialize(&mut **self)
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        value.serialize(&mut Serializer::new(&mut self.output))
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
@@ -422,9 +420,8 @@ where
     where
         T: ?Sized + Serialize,
     {
-        let mut ser = Serializer::new(&mut self.output);
-        key.serialize(&mut ser)?;
-        value.serialize(&mut ser)?;
+        key.serialize(&mut **self)?;
+        value.serialize(&mut **self)?;
         Ok(())
     }
 
