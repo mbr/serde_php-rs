@@ -1,6 +1,6 @@
 [package]
 name = "serde_php"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Marc Brinkmann <git@marcbrinkmann.de>"]
 edition = "2018"
 description = "Serde support for PHP's serialization format."
