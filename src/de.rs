@@ -534,6 +534,21 @@ where
 }
 
 /// Helper to deserialize a PHP array where the keys might be out of order.
+///
+/// ### Caveat
+///
+/// Holes in the array will not be filled in.  The following PHP array
+///
+/// ```php
+/// $arr = array();
+/// $arr[0] = "zero";
+/// $arr[2] = "two";
+/// $arr[1] = "one";
+/// $arr[6] = "six";
+/// ```
+///
+/// will be deserialized to a Rust `Vec` with the four elements
+/// "zero", "one", "two", and "six".
 pub fn deserialize_unordered_array<'de, T, D>(
     deserializer: D,
 ) -> std::result::Result<Vec<T>, D::Error>
@@ -628,6 +643,25 @@ mod tests {
         assert_deserializes!(
             Data,
             br#"a:4:{i:1;d:2.2;i:0;d:1.1;i:3;d:4.4;i:2;d:3.3;}"#,
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_array_unordered_with_holes() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Data(#[serde(deserialize_with = "deserialize_unordered_array")] Vec<String>);
+
+        let expected = Data(vec![
+            "zero".to_string(),
+            "one".to_string(),
+            "two".to_string(),
+            "six".to_string(),
+        ]);
+
+        assert_deserializes!(
+            Data,
+            br#"a:4:{i:0;s:4:"zero";i:2;s:3:"two";i:1;s:3:"one";i:6;s:3:"six";}"#,
             expected
         );
     }
