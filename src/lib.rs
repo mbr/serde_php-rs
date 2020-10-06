@@ -1,4 +1,5 @@
 #![forbid(missing_docs)]
+#![allow(clippy::float_cmp)]
 //! # PHP serialization format support for serde
 //!
 //! PHP uses a custom serialization format through its
@@ -176,7 +177,7 @@ mod de;
 mod error;
 mod ser;
 
-pub use de::from_bytes;
+pub use de::{deserialize_unordered_array, from_bytes};
 pub use error::{Error, Result};
 pub use ser::{to_vec, to_writer};
 
