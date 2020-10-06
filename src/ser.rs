@@ -453,7 +453,6 @@ impl ser::SerializeStructVariant for NotImplemented {
 #[cfg(test)]
 mod tests {
     use super::to_vec;
-    use bson;
     use serde::Serialize;
     use std::collections::BTreeMap;
 

@@ -5,6 +5,7 @@ use serde::de::MapAccess;
 use serde::de::{Deserialize, DeserializeSeed, IntoDeserializer, SeqAccess, Visitor};
 use serde::{forward_to_deserialize_any, Deserializer};
 use smallvec::SmallVec;
+use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::io;
 use std::io::{BufRead, Read};
@@ -193,6 +194,10 @@ where
         PhpDeserializer {
             input: Lookahead1::new(input),
         }
+    }
+
+    fn peek(&mut self) -> Result<Option<u8>> {
+        self.input.peek()
     }
 }
 
@@ -505,6 +510,11 @@ where
             return Ok(None);
         }
 
+        // Keys can be integers or strings.
+        if let Some(b'i') = self.de.peek()? {
+            return seed.deserialize(&mut *self.de).map(Some);
+        }
+
         // We need to hint that we are deserializing a string, since PHP
         // strings are not fit to be keys. For this reason, we perform the
         // deserialization here:
@@ -523,9 +533,37 @@ where
     }
 }
 
+/// Helper to deserialize a PHP array where the keys might be out of order.
+///
+/// ### Caveat
+///
+/// Holes in the array will not be filled in.  The following PHP array
+///
+/// ```php
+/// $arr = array();
+/// $arr[0] = "zero";
+/// $arr[2] = "two";
+/// $arr[1] = "one";
+/// $arr[6] = "six";
+/// ```
+///
+/// will be deserialized to a Rust `Vec` with the four elements
+/// "zero", "one", "two", and "six".
+pub fn deserialize_unordered_array<'de, T, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    // Serialize into a map and return a Vec ordered by the keys.
+    let v = BTreeMap::<usize, T>::deserialize(deserializer)?;
+    Ok(v.into_iter().map(|(_, v)| v).collect())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::from_bytes;
+    use super::{deserialize_unordered_array, from_bytes};
     use serde::Deserialize;
     use std::collections::HashMap;
 
@@ -592,6 +630,39 @@ mod tests {
             Data,
             br#"a:3:{i:0;s:4:"user";i:1;s:0:"";i:2;a:0:{}}"#,
             Data(b"user".to_vec(), b"".to_vec(), SubData())
+        );
+    }
+
+    #[test]
+    fn deserialize_array_unordered() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Data(#[serde(deserialize_with = "deserialize_unordered_array")] Vec<f64>);
+
+        let expected = Data(vec![1.1, 2.2, 3.3, 4.4]);
+
+        assert_deserializes!(
+            Data,
+            br#"a:4:{i:1;d:2.2;i:0;d:1.1;i:3;d:4.4;i:2;d:3.3;}"#,
+            expected
+        );
+    }
+
+    #[test]
+    fn deserialize_array_unordered_with_holes() {
+        #[derive(Debug, Deserialize, PartialEq)]
+        struct Data(#[serde(deserialize_with = "deserialize_unordered_array")] Vec<String>);
+
+        let expected = Data(vec![
+            "zero".to_string(),
+            "one".to_string(),
+            "two".to_string(),
+            "six".to_string(),
+        ]);
+
+        assert_deserializes!(
+            Data,
+            br#"a:4:{i:0;s:4:"zero";i:2;s:3:"two";i:1;s:3:"one";i:6;s:3:"six";}"#,
+            expected
         );
     }
 
