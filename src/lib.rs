@@ -29,10 +29,36 @@
 //!
 //! * Rust `String`s are transparently UTF8-converted to PHP bytestrings.
 //!
+//! ### Out-of-order arrays
+//!
+//! PHP arrays can be created "out of order", as they store every array index as an
+//! explicit integer in the array. Thus the following code
+//!
+//! ```php
+//! $arr = array();
+//! $arr[0] = "zero";
+//! $arr[3] = "three";
+//! $arr[2] = "two";
+//! $arr[1] = "one";
+//! ```
+//!
+//! results in an array that would be equivalent to ["zero", "one", "two", "three"],
+//! at least when iterated over.
+//!
+//! Because deserialization does not buffer values, these arrays cannot be directly
+//! serialized into a `Vec`. Instead they should be deserialized into a map, which
+//! can then be turned into a `Vec` if desired.
+//!
+//! A second concern are "holes" in the array, e.g. if the entry with key `1` is
+//! missing. How to fill these is typically up to the user.
+//!
+//! The helper function `deserialize_unordered_array` can be used with serde's
+//! `deserialize_with` decorator to automatically buffer and order things, as well
+//! as plugging holes by closing any gaps.
+//!
 //! ## What is missing?
 //!
 //! * PHP objects
-//! * Out-of-order numeric arrays
 //! * Non-string/numeric array keys, except when deserializing into a `HashMap`
 //! * Mixed arrays. Array keys are assumed to always have the same key type
 //!   (Note: If this is required, consider extending this library with a variant

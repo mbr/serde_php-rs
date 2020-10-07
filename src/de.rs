@@ -535,7 +535,7 @@ where
 
 /// Helper to deserialize a PHP array where the keys might be out of order.
 ///
-/// ### Caveat
+/// ## Caveat
 ///
 /// Holes in the array will not be filled in.  The following PHP array
 ///
