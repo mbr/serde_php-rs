@@ -279,6 +279,18 @@ where
                     self.input.collect_unsigned(&mut buf)?;
                 }
 
+                let exp = self.input.peek()?;
+
+                if let Some(exp) = exp {
+                    if matches!(exp, b'e' | b'E') {
+                        buf.push(b'E');
+                        self.input.expect(exp)?;
+
+                        self.input.collect_sign(&mut buf)?;
+                        self.input.collect_unsigned(&mut buf)?;
+                    }
+                }
+
                 self.input.expect(b';')?;
 
                 visitor.visit_f64(parse_bytes(buf)?)
@@ -598,6 +610,10 @@ mod tests {
         assert_deserializes!(f64, b"d:-1.9;", -1.9);
         assert_deserializes!(f64, b"d:0.9;", 0.9);
         assert_deserializes!(f64, b"d:1.9;", 1.9);
+        assert_deserializes!(f64, b"d:3.0e-15;", 3.0E-15);
+        assert_deserializes!(f64, b"d:3.0e15;", 3.0E15);
+        assert_deserializes!(f64, b"d:3.0e+15;", 3.0E+15);
+        assert_deserializes!(f64, b"d:3.0000000000000004E-5;", 3.0000000000000004E-5);
     }
 
     #[test]
